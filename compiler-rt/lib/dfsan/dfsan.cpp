@@ -31,10 +31,19 @@
 
 using namespace __dfsan;
 
-typedef atomic_uint16_t atomic_dfsan_label;
+//typedef atomic_uint16_t atomic_dfsan_label;
+typedef atomic_uint32_t atomic_dfsan_label;
+
 static const dfsan_label kInitializingLabel = -1;
 
-static const uptr kNumLabels = 1 << (sizeof(dfsan_label) * 8);
+#define DFSAN_LABEL_BITS 32
+#define DFSAN_MAX_TAINT_ID 128
+// MAX_LABELS = (2^DFSAN_LABEL_BITS) / 2 - 2 = (1 << (DFSAN_LABEL_BITS - 1)) - 2
+// = 2^31 - 2 = 0x7FFFFFFE
+#define MAX_LABELS ((1L << (DFSAN_LABEL_BITS - 1)) - 2)
+
+//static const uptr kNumLabels = 1 << (sizeof(dfsan_label) * 8);
+static const uint64_t kNumLabels = MAX_LABELS;
 
 static atomic_dfsan_label __dfsan_last_label;
 static dfsan_label_info __dfsan_label_info[kNumLabels];
