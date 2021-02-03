@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-typedef uint16_t dfsan_label;
+typedef uint32_t dfsan_label;
 
 /// Stores information associated with a specific label identifier.  A label
 /// may be a base label created using dfsan_create_label, with associated
