@@ -16,12 +16,13 @@
 
 #include "sanitizer_common/sanitizer_internal_defs.h"
 #include "dfsan_platform.h"
+#include <stdint.h>
 
 using __sanitizer::uptr;
 using __sanitizer::u16;
 
 // Copy declarations from public sanitizer/dfsan_interface.h header here.
-typedef u16 dfsan_label;
+typedef uint32_t dfsan_label;
 
 struct dfsan_label_info {
   dfsan_label l1;
@@ -47,7 +48,8 @@ namespace __dfsan {
 void InitializeInterceptors();
 
 inline dfsan_label *shadow_for(void *ptr) {
-  return (dfsan_label *) ((((uptr) ptr) & ShadowMask()) << 1);
+  //Was 1, the shift should be DFSAN_LABEL_BITS/16
+  return (dfsan_label *) ((((uptr) ptr) & ShadowMask()) << 2);
 }
 
 inline const dfsan_label *shadow_for(const void *ptr) {
