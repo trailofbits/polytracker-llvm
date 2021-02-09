@@ -1,4 +1,4 @@
-from ubuntu:bionic
+from ubuntu:bionic AS polytracker-llvm
 MAINTAINER Carson Harmon <carson.harmon@trailofbits.com>
 
 ##########################################################
@@ -35,7 +35,7 @@ RUN mkdir /cxx_libs && mkdir /polytracker_clang
 WORKDIR /polytracker_clang
 RUN cmake -GNinja ${LLVM_DIR} \
   -DLLVM_TARGETS_TO_BUILD="X86" \
-  -DLLVM_ENABLE_PROJECTS="compiler-rt" \
+  -DLLVM_ENABLE_PROJECTS="clang;llvm;compiler-rt" \
   -DCMAKE_BUILD_TYPE="Release"
 
 RUN ninja install
@@ -90,6 +90,3 @@ RUN cmake -GNinja ${LLVM_CXX_DIR} \
 
 ENV WLLVM_BC_STORE=$BITCODE
 RUN ninja cxx cxxabi
-
-
-
