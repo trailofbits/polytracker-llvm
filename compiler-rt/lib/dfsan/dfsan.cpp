@@ -204,20 +204,17 @@ static void dfsan_check_label(dfsan_label label) {
   }
 }
 
-extern "C" SANITIZER_INTERFACE_ATTRIBUTE
-void __dfsan_update_label_count(dfsan_label new_label) {
-  atomic_store(&__dfsan_last_label, new_label, memory_order_relaxed);
-}
+//extern "C" SANITIZER_INTERFACE_ATTRIBUTE
+//void __dfsan_update_label_count(dfsan_label new_label) {
+//  atomic_store(&__dfsan_last_label, new_label, memory_order_relaxed);
+//}
 
 // This is a weak function stub for polytracker_union 
 // In reality polytracker will maintain the union table and all other structures.
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((weak))
-dfsan_label __polytracker_union(dfsan_label l1, dfsan_label l2, dfsan_label curr_label) {
+dfsan_label __polytracker_union(dfsan_label l1, dfsan_label l2) {
   // Just allocate a label.
-  dfsan_label label =
-        atomic_fetch_add(&__dfsan_last_label, 1, memory_order_relaxed) + 1;
-  __dfsan_update_label_count(label);
-  return curr_label + 1;
+  return l2;
 }
 
 // Resolves the union of two unequal labels.  Nonequality is a precondition for
@@ -278,9 +275,11 @@ dfsan_label __dfsan_union(dfsan_label l1, dfsan_label l2) {
   }
   return label;
   */
- dfsan_label max_label = atomic_load(&__dfsan_last_label, memory_order_relaxed);
- dfsan_check_label(max_label);
- return __polytracker_union(l1, l2, max_label);
+ //dfsan_label max_label = atomic_load(&__dfsan_last_label, memory_order_relaxed);
+ //dfsan_check_label(max_label);
+ dfsan_label label = __polytracker_union(l1, l2);
+ dfsan_check_label(label);
+ return label;
 }
 
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE
@@ -553,7 +552,7 @@ static void InitializePlatformEarly() {
 #endif
 }
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((weak))
-void __polytracker_dump(dfsan_label last_label, void * addr) {
+void __polytracker_dump(dfsan_label last_label) {
   
 }
 static void dfsan_fini() {
@@ -572,7 +571,7 @@ static void dfsan_fini() {
   }
   dfsan_label last_label =
       atomic_load(&__dfsan_last_label, memory_order_relaxed);
-  __polytracker_dump(last_label, (void*)ShadowAddr());
+  __polytracker_dump(last_label);
 }
 
 extern "C" void dfsan_flush() {
