@@ -1,4 +1,9 @@
-# The LLVM Compiler Infrastructure
+# The LLVM Compiler Infrastructure for PolyTracker
+
+This is a modified version of LLVM to support [PolyTracker](https://github.com/trailofbits/polytracker), a universal taint analysis instrumentation engine.
+
+All of the modifications are in the default branch called `polytracker`.
+The [`main` branch](https://github.com/trailofbits/polytracker-llvm/tree/main) always tracks upstream LLVM.
 
 This directory and its sub-directories contain source code for LLVM,
 a toolkit for the construction of highly optimized compilers,
