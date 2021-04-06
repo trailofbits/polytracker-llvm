@@ -45,20 +45,15 @@ typedef atomic_uint64_t atomic_union_label;
 static const dfsan_label kInitializingLabel = -1;
 
 #define DFSAN_LABEL_BITS 32
-#define DFSAN_MAX_TAINT_ID 128
 // MAX_LABELS = (2^DFSAN_LABEL_BITS) / 2 - 2 = (1 << (DFSAN_LABEL_BITS - 1)) - 2
 // = 2^31 - 2 = 0x7FFFFFFE
-#define MAX_LABELS ((1L << (DFSAN_LABEL_BITS - 1)) - 2)
+// #define MAX_LABELS ((1L << (DFSAN_LABEL_BITS - 1)) - 2)
+#define MAX_LABELS 0xfffffffe
 
 static const uptr oldNumLabels = 1 << (sizeof(uint16_t) * 8);
 static const uint64_t kNumLabels = MAX_LABELS;
 
 static atomic_dfsan_label __dfsan_last_label;
-//static std::unordered_map<dfsan_label, dfsan_label_info> __dfsan_label_info;
-//static dfsan_label_info __dfsan_label_info[kNumLabels];
-//typedef __sanitizer::TaintHashMap<dfsan_label_info, 65536> label_map_t;
-//label_map_t __dfsan_label_info;
-
 Flags __dfsan::flags_data;
 
 // The size of TLS variables. These constants must be kept in sync with the ones
