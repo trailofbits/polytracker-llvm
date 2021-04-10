@@ -11,13 +11,13 @@ jobs:
         build-type: [Release, Debug]
     steps:
       - name: Set Docker image tag
-          id: setTag
-          run: |
-            if [[ "${{ matrix.build_type }}" == "Debug" ]]; then
-                echo "::set-output name=dockerTag::debug-"
-            else
-                echo "::set-output name=dockerTag::"
-            fi
+        id: setTag
+        run: |
+          if [[ "${{ matrix.build_type }}" == "Debug" ]]; then
+              echo "::set-output name=dockerTag::debug-"
+          else
+              echo "::set-output name=dockerTag::"
+          fi
       -
         name: Login to DockerHub
         uses: docker/login-action@v1 
