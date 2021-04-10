@@ -19,7 +19,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: trailofbits/polytracker-llvm:latest
+          tags: trailofbits/polytracker-llvm:latest,trailofbits/polytracker-llvm:${{ github.sha }}
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
