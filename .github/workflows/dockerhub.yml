@@ -13,7 +13,7 @@ jobs:
       - name: Set Docker image tag
         id: setTag
         run: |
-          if [[ "${{ matrix.build_type }}" == "Debug" ]]; then
+          if [[ "${{ matrix.build-type }}" == "Debug" ]]; then
               echo "::set-output name=dockerTag::debug-"
           else
               echo "::set-output name=dockerTag::"
