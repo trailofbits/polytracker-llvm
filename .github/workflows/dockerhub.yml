@@ -6,7 +6,18 @@ jobs:
   push_to_registry:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build-type: [Release, Debug]
     steps:
+      - name: Set Docker image tag
+          id: setTag
+          run: |
+            if [[ "${{ matrix.build_type }}" == "Debug" ]]; then
+                echo "::set-output name=dockerTag::debug-"
+            else
+                echo "::set-output name=dockerTag::"
+            fi
       -
         name: Login to DockerHub
         uses: docker/login-action@v1 
@@ -19,7 +30,9 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: trailofbits/polytracker-llvm:latest,trailofbits/polytracker-llvm:${{ github.sha }}
+          build-args: |
+            BUILD_TYPE=${{ matrix.build-type }}
+          tags: trailofbits/polytracker-llvm:${{ steps.setTag.outputs.dockerTag }}latest,trailofbits/polytracker-llvm:${{ steps.setTag.outputs.dockerTag }}${{ github.sha }}
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
