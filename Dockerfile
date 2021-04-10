@@ -5,6 +5,8 @@ FROM ubuntu:bionic AS builder
 # It also debloats other codebases that use this
 ##########################################################
 
+ARG BUILD_TYPE="Release"
+
 # Build clang libs, cxx libs. Export the bin, and cxx libs?
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y update  \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -34,7 +36,7 @@ WORKDIR /polytracker_clang
 RUN cmake -GNinja ${LLVM_DIR} \
   -DLLVM_TARGETS_TO_BUILD="X86" \
   -DLLVM_ENABLE_PROJECTS="clang;llvm;compiler-rt" \
-  -DCMAKE_BUILD_TYPE="Release"
+  -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
 
 RUN ninja install
 ENV PATH="$PATH:/polytracker_clang/bin"
@@ -55,7 +57,7 @@ RUN mkdir -p $CLEAN_CXX_DIR && mkdir -p $BITCODE
 WORKDIR $CLEAN_CXX_DIR
 
 RUN cmake -GNinja ${LLVM_CXX_DIR} \
-  -DCMAKE_BUILD_TYPE="Release" \
+  -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
   -DLLVM_TARGETS_TO_BUILD="X86" \
   -DLLVM_ENABLE_LIBCXX=ON \
   -DLIBCXXABI_ENABLE_SHARED=NO \
@@ -74,7 +76,7 @@ RUN mkdir -p $POLY_CXX_DIR && mkdir -p $BITCODE
 WORKDIR  $POLY_CXX_DIR
 
 RUN cmake -GNinja ${LLVM_CXX_DIR} \
-  -DCMAKE_BUILD_TYPE="Release" \
+  -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
   -DLLVM_TARGETS_TO_BUILD="X86" \
   -DLLVM_ENABLE_LIBCXX=ON \
   -DLIBCXX_ABI_NAMESPACE="__p" \
