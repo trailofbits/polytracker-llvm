@@ -25,7 +25,7 @@ using __sanitizer::u32;
 using __sanitizer::uptr;
 
 // Copy declarations from public sanitizer/dfsan_interface.h header here.
-typedef u16 dfsan_label;
+typedef uint32_t dfsan_label;
 typedef u32 dfsan_origin;
 
 struct dfsan_label_info {
@@ -74,6 +74,7 @@ inline dfsan_label *shadow_for(void *ptr) {
 inline const dfsan_label *shadow_for(const void *ptr) {
   return shadow_for(const_cast<void *>(ptr));
 }
+
 
 inline uptr unaligned_origin_for(uptr ptr) {
   return OriginAddr() + (ptr & ShadowMask());

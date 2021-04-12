@@ -781,7 +781,7 @@ DataFlowSanitizer::DataFlowSanitizer(
         "cannot set both -dfsan-fast-8-labels and -dfsan-fast-16-labels");
   }
   
-  ShadowWidthBits = ClFast8Labels ? 8 : 16;
+  ShadowWidthBits = ClFast8Labels ? 8 : 32;
   ShadowWidthBytes = ShadowWidthBits / 8;
 
   std::vector<std::string> AllABIListFiles(std::move(ABIListFiles));
