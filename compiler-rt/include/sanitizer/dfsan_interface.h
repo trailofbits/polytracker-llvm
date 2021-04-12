@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-typedef uint16_t dfsan_label;
+typedef uint32_t dfsan_label;
 typedef uint32_t dfsan_origin;
 
 /// Stores information associated with a specific label identifier.  A label
@@ -38,6 +38,8 @@ struct dfsan_label_info {
   const char *desc;
   void *userdata;
 };
+
+void __dfsan_update_label_count(dfsan_label new_label);
 
 /// Signature of the callback argument to dfsan_set_write_callback().
 typedef void (*dfsan_write_callback_t)(int fd, const void *buf, size_t count);

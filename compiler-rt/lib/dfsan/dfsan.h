@@ -18,13 +18,14 @@
 
 #include "dfsan_flags.h"
 #include "dfsan_platform.h"
+#include <stdint.h>
 
 using __sanitizer::u16;
 using __sanitizer::u32;
 using __sanitizer::uptr;
 
 // Copy declarations from public sanitizer/dfsan_interface.h header here.
-typedef u16 dfsan_label;
+typedef uint32_t dfsan_label;
 typedef u32 dfsan_origin;
 
 struct dfsan_label_info {
@@ -66,12 +67,14 @@ namespace __dfsan {
 void InitializeInterceptors();
 
 inline dfsan_label *shadow_for(void *ptr) {
-  return (dfsan_label *) ((((uptr) ptr) & ShadowMask()) << 1);
+  //Was 1, the shift should be DFSAN_LABEL_BITS/16
+  return (dfsan_label *) ((((uptr) ptr) & ShadowMask()) << 2);
 }
 
 inline const dfsan_label *shadow_for(const void *ptr) {
   return shadow_for(const_cast<void *>(ptr));
 }
+
 
 inline uptr unaligned_origin_for(uptr ptr) {
   return OriginAddr() + (ptr & ShadowMask());

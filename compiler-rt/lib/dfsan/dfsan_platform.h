@@ -20,7 +20,7 @@ namespace __dfsan {
 struct Mapping {
   static const uptr kShadowAddr = 0x10000;
   static const uptr kOriginAddr = 0x200000000000;
-  static const uptr kUnionTableAddr = 0x300000000000;
+  static const uptr kUnionTableAddr = 0x400000000000;
   static const uptr kAppAddr = 0x700000008000;
   static const uptr kShadowMask = ~0x700000000000;
 };
