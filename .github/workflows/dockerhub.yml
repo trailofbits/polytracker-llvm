@@ -8,7 +8,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        build-type: [Release, Debug]
+        # for now, Debug takes too much disk space to run in CI
+        # TODO: investigate reducing LLVM/clang features so we don't do a full build
+        # build-type: [Release, Debug]
+        build-type: [Release]
     steps:
       - name: Set Docker image tag
         id: setTag
