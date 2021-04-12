@@ -6,6 +6,7 @@ FROM ubuntu:bionic AS builder
 ##########################################################
 
 ARG BUILD_TYPE="Release"
+ARG PARALLEL_LINK_JOBS=1
 
 # Build clang libs, cxx libs. Export the bin, and cxx libs?
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y update  \
@@ -36,7 +37,8 @@ WORKDIR /polytracker_clang
 RUN cmake -GNinja ${LLVM_DIR} \
   -DLLVM_TARGETS_TO_BUILD="X86" \
   -DLLVM_ENABLE_PROJECTS="clang;llvm;compiler-rt" \
-  -DCMAKE_BUILD_TYPE=${BUILD_TYPE}
+  -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+  -DLLVM_PARALLEL_LINK_JOBS=${PARALLEL_LINK_JOBS}
 
 RUN ninja install
 ENV PATH="$PATH:/polytracker_clang/bin"
@@ -63,7 +65,8 @@ RUN cmake -GNinja ${LLVM_CXX_DIR} \
   -DLIBCXXABI_ENABLE_SHARED=NO \
   -DLIBCXX_ENABLE_SHARED=NO \
   -DLIBCXX_CXX_ABI="libcxxabi" \
-  -DLLVM_ENABLE_PROJECTS="libcxx;libcxxabi"
+  -DLLVM_ENABLE_PROJECTS="libcxx;libcxxabi" \
+  -DLLVM_PARALLEL_LINK_JOBS=${PARALLEL_LINK_JOBS}
 
 ENV WLLVM_BC_STORE=$BITCODE
 RUN ninja cxx cxxabi
@@ -86,7 +89,8 @@ RUN cmake -GNinja ${LLVM_CXX_DIR} \
   -DLIBCXX_CXX_ABI="libcxxabi" \
   -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON \
   -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-  -DLLVM_ENABLE_PROJECTS="libcxx;libcxxabi"
+  -DLLVM_ENABLE_PROJECTS="libcxx;libcxxabi" \
+  -DLLVM_PARALLEL_LINK_JOBS=${PARALLEL_LINK_JOBS}
 
 ENV WLLVM_BC_STORE=$BITCODE
 RUN ninja cxx cxxabi
