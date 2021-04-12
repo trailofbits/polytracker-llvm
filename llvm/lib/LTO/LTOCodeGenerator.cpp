@@ -285,8 +285,8 @@ LTOCodeGenerator::compileOptimized() {
     return nullptr;
 
   // read .o file into memory buffer
-  ErrorOr<std::unique_ptr<MemoryBuffer>> BufferOrErr =
-      MemoryBuffer::getFile(name, -1, false);
+  ErrorOr<std::unique_ptr<MemoryBuffer>> BufferOrErr = MemoryBuffer::getFile(
+      name, /*IsText=*/false, /*RequiresNullTerminator=*/false);
   if (std::error_code EC = BufferOrErr.getError()) {
     emitError(EC.message());
     sys::fs::remove(NativeObjectPath);
@@ -545,7 +545,6 @@ bool LTOCodeGenerator::optimize() {
   // Add an appropriate DataLayout instance for this module...
   MergedModule->setDataLayout(TargetMach->createDataLayout());
 
-
   ModuleSummaryIndex CombinedIndex(false);
   TargetMach = createTargetMachine();
   if (!opt(Config, TargetMach.get(), 0, *MergedModule, /*IsThinLTO=*/false,
@@ -573,6 +572,7 @@ bool LTOCodeGenerator::compileOptimized(lto::AddStreamFn AddStream,
 
   ModuleSummaryIndex CombinedIndex(false);
 
+  Config.CodeGenOnly = true;
   Error Err = backend(Config, AddStream, ParallelismLevel, *MergedModule,
                       CombinedIndex);
   assert(!Err && "unexpected code-generation failure");
@@ -598,16 +598,19 @@ void LTOCodeGenerator::setCodeGenDebugOptions(ArrayRef<StringRef> Options) {
 }
 
 void LTOCodeGenerator::parseCodeGenDebugOptions() {
-  // if options were requested, set them
-  if (!CodegenOptions.empty()) {
+  if (!CodegenOptions.empty())
+    llvm::parseCommandLineOptions(CodegenOptions);
+}
+
+void llvm::parseCommandLineOptions(std::vector<std::string> &Options) {
+  if (!Options.empty()) {
     // ParseCommandLineOptions() expects argv[0] to be program name.
     std::vector<const char *> CodegenArgv(1, "libLLVMLTO");
-    for (std::string &Arg : CodegenOptions)
+    for (std::string &Arg : Options)
       CodegenArgv.push_back(Arg.c_str());
     cl::ParseCommandLineOptions(CodegenArgv.size(), CodegenArgv.data());
   }
 }
-
 
 void LTOCodeGenerator::DiagnosticHandler(const DiagnosticInfo &DI) {
   // Map the LLVM internal diagnostic severity to the LTO diagnostic severity.
