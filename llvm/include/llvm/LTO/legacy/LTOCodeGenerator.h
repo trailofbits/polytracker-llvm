@@ -31,8 +31,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_LTO_LTOCODEGENERATOR_H
-#define LLVM_LTO_LTOCODEGENERATOR_H
+#ifndef LLVM_LTO_LEGACY_LTOCODEGENERATOR_H
+#define LLVM_LTO_LEGACY_LTOCODEGENERATOR_H
 
 #include "llvm-c/lto.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -240,5 +240,9 @@ private:
 
   lto::Config Config;
 };
+
+/// A convenience function that calls cl::ParseCommandLineOptions on the given
+/// set of options.
+void parseCommandLineOptions(std::vector<std::string> &Options);
 }
 #endif
