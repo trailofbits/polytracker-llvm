@@ -162,6 +162,7 @@ add_llvm_component_library(LLVMSupport
   ScaledNumber.cpp
   ScopedPrinter.cpp
   SHA1.cpp
+  SHA256.cpp
   Signposts.cpp
   SmallPtrSet.cpp
   SmallVector.cpp
@@ -184,6 +185,7 @@ add_llvm_component_library(LLVMSupport
   TrigramIndex.cpp
   Triple.cpp
   Twine.cpp
+  TypeSize.cpp
   Unicode.cpp
   UnicodeCaseFold.cpp
   VersionTuple.cpp
