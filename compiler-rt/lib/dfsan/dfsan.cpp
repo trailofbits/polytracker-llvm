@@ -202,15 +202,16 @@ extern "C" SANITIZER_INTERFACE_ATTRIBUTE void __polytracker_log_union(const dfsa
 
 // These will be overridden when linking with polytracker
 // -------------------------------------- VVV
-extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((__weak))
+extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((weak))
 dfsan_label_info __polytracker_get_label_info(const dfsan_label &label) {
   return {0, 0, nullptr, nullptr};
 }
-extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((__weak))
+extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((weak))
 atomic_dfsan_label* __polytracker_union_table(const dfsan_label &l1, const dfsan_label& l2) {
+  printf("ERROR In weak function symbol\n");
   return nullptr;
 }
-extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((__weak))
+extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((weak))
 void __polytracker_log_union(const dfsan_label &l1, const dfsan_label &l2, const dfsan_label& union_label) {}
 
 // Resolves the union of two unequal labels.  Nonequality is a precondition for
@@ -235,9 +236,9 @@ dfsan_label __dfsan_union(dfsan_label l1, dfsan_label l2) {
   atomic_dfsan_label *table_ent = __polytracker_union_table(l1, l2);
   // Edgecase for atexit handling code with polytracker
   if (table_ent == nullptr) {
+    printf("WARNING: Table entry is nullptr\n");
     return 0;
   }
-  
 	// We need to deal with the case where two threads concurrently request
   // a union of the same pair of labels.  If the table entry is uninitialized,
   // (i.e. 0) use a compare-exchange to set the entry to kInitializingLabel
