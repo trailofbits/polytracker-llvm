@@ -2128,20 +2128,20 @@ SANITIZER_INTERFACE_ATTRIBUTE void __dfso_dfsan_set_write_callback(
   write_origin_callback_info.write_callback = write_callback;
 }
 
-SANITIZER_INTERFACE_ATTRIBUTE int
-__dfsw_write(int fd, const void *buf, size_t count,
-             dfsan_label fd_label, dfsan_label buf_label,
-             dfsan_label count_label, dfsan_label *ret_label) {
-  if (write_callback_info.write_callback) {
-    write_callback_info.write_callback_trampoline(
-        write_callback_info.write_callback,
-        fd, buf, count,
-        fd_label, buf_label, count_label);
-  }
+// SANITIZER_INTERFACE_ATTRIBUTE int
+// __dfsw_write(int fd, const void *buf, size_t count,
+//              dfsan_label fd_label, dfsan_label buf_label,
+//              dfsan_label count_label, dfsan_label *ret_label) {
+//   if (write_callback_info.write_callback) {
+//     write_callback_info.write_callback_trampoline(
+//         write_callback_info.write_callback,
+//         fd, buf, count,
+//         fd_label, buf_label, count_label);
+//   }
 
-  *ret_label = 0;
-  return write(fd, buf, count);
-}
+//   *ret_label = 0;
+//   return write(fd, buf, count);
+// }
 
 SANITIZER_INTERFACE_ATTRIBUTE int __dfso_write(
     int fd, const void *buf, size_t count, dfsan_label fd_label,
