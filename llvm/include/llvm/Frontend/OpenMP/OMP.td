@@ -68,6 +68,8 @@ def OMPC_Private : Clause<"private"> {
   let flangClass = "OmpObjectList";
 }
 def OMPC_Sizes: Clause<"sizes"> { let clangClass = "OMPSizesClause"; }
+def OMPC_Full: Clause<"full"> { let clangClass = "OMPFullClause"; }
+def OMPC_Partial: Clause<"partial"> { let clangClass = "OMPPartialClause"; }
 def OMPC_FirstPrivate : Clause<"firstprivate"> {
   let clangClass = "OMPFirstprivateClause";
   let flangClass = "OmpObjectList";
@@ -259,6 +261,8 @@ def OMPC_Allocate : Clause<"allocate"> {
 }
 def OMPC_NonTemporal : Clause<"nontemporal"> {
   let clangClass = "OMPNontemporalClause";
+  let flangClass = "Name";
+  let isValueList = true; 
 }
 
 def OMP_ORDER_concurrent : ClauseVal<"default",2,0> { let isDefault = 1; }
@@ -400,6 +404,12 @@ def OMP_Tile : Directive<"tile"> {
     VersionedClause<OMPC_Sizes, 51>,
   ];
 }
+def OMP_Unroll : Directive<"unroll"> {
+  let allowedOnceClauses = [
+    VersionedClause<OMPC_Full, 51>,
+    VersionedClause<OMPC_Partial, 51>,
+  ];
+}
 def OMP_For : Directive<"for"> {
   let allowedClauses = [
     VersionedClause<OMPC_Private>,
@@ -465,8 +475,8 @@ def OMP_TaskWait : Directive<"taskwait"> {
 }
 def OMP_TaskGroup : Directive<"taskgroup"> {
   let allowedClauses = [
-    VersionedClause<OMPC_TaskReduction>,
-    VersionedClause<OMPC_Allocate>
+    VersionedClause<OMPC_TaskReduction, 50>,
+    VersionedClause<OMPC_Allocate, 50>
   ];
 }
 def OMP_Flush : Directive<"flush"> {
@@ -920,6 +930,13 @@ def OMP_Distribute : Directive<"distribute"> {
   let allowedOnceClauses = [
     VersionedClause<OMPC_Collapse>,
     VersionedClause<OMPC_DistSchedule>
+  ];
+}
+def OMP_BeginDeclareTarget : Directive<"begin declare target"> {
+  let allowedClauses = [
+    VersionedClause<OMPC_To>,
+    VersionedClause<OMPC_Link>,
+    VersionedClause<OMPC_DeviceType>,
   ];
 }
 def OMP_DeclareTarget : Directive<"declare target"> {
@@ -1490,7 +1507,7 @@ def OMP_TargetTeamsDistributeSimd :
   ];
 }
 def OMP_Allocate : Directive<"allocate"> {
-  let allowedClauses = [
+  let allowedOnceClauses = [
     VersionedClause<OMPC_Allocator>
   ];
 }

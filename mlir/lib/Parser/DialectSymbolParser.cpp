@@ -94,7 +94,7 @@ public:
   }
 
   /// Parse an optional integer value from the stream.
-  OptionalParseResult parseOptionalInteger(uint64_t &result) override {
+  OptionalParseResult parseOptionalInteger(APInt &result) override {
     return parser.parseOptionalInteger(result);
   }
 
@@ -238,19 +238,19 @@ public:
   }
 
   /// Parses a quoted string token if present.
-  ParseResult parseOptionalString(StringRef *string) override {
+  ParseResult parseOptionalString(std::string *string) override {
     if (!parser.getToken().is(Token::string))
       return failure();
 
     if (string)
-      *string = parser.getTokenSpelling().drop_front().drop_back();
+      *string = parser.getToken().getStringValue();
     parser.consumeToken();
     return success();
   }
 
   /// Returns true if the current token corresponds to a keyword.
   bool isCurrentTokenAKeyword() const {
-    return parser.getToken().is(Token::bare_identifier) ||
+    return parser.getToken().isAny(Token::bare_identifier, Token::inttype) ||
            parser.getToken().isKeyword();
   }
 
@@ -306,6 +306,10 @@ public:
   ParseResult parseDimensionList(SmallVectorImpl<int64_t> &dimensions,
                                  bool allowDynamic) override {
     return parser.parseDimensionListRanked(dimensions, allowDynamic);
+  }
+
+  ParseResult parseXInDimensionList() override {
+    return parser.parseXInDimensionList();
   }
 
   OptionalParseResult parseOptionalType(Type &result) override {
@@ -486,7 +490,7 @@ static T parseSymbol(StringRef inputStr, MLIRContext *context,
       inputStr, /*BufferName=*/"<mlir_parser_buffer>",
       /*RequiresNullTerminator=*/false);
   sourceMgr.AddNewSourceBuffer(std::move(memBuffer), SMLoc());
-  ParserState state(sourceMgr, context, symbolState);
+  ParserState state(sourceMgr, context, symbolState, /*asmState=*/nullptr);
   Parser parser(state);
 
   Token startTok = parser.getToken();

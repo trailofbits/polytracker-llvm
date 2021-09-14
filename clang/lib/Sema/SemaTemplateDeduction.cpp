@@ -2858,9 +2858,24 @@ static Sema::TemplateDeductionResult ConvertDeducedTemplateArguments(
       return Sema::TDK_Incomplete;
     }
 
-    TemplateArgumentLoc DefArg = S.SubstDefaultTemplateArgumentIfAvailable(
-        TD, TD->getLocation(), TD->getSourceRange().getEnd(), Param, Builder,
-        HasDefaultArg);
+    TemplateArgumentLoc DefArg;
+    {
+      Qualifiers ThisTypeQuals;
+      CXXRecordDecl *ThisContext = nullptr;
+      if (auto *Rec = dyn_cast<CXXRecordDecl>(TD->getDeclContext()))
+        if (Rec->isLambda())
+          if (auto *Method = dyn_cast<CXXMethodDecl>(Rec->getDeclContext())) {
+            ThisContext = Method->getParent();
+            ThisTypeQuals = Method->getMethodQualifiers();
+          }
+
+      Sema::CXXThisScopeRAII ThisScope(S, ThisContext, ThisTypeQuals,
+                                       S.getLangOpts().CPlusPlus17);
+
+      DefArg = S.SubstDefaultTemplateArgumentIfAvailable(
+          TD, TD->getLocation(), TD->getSourceRange().getEnd(), Param, Builder,
+          HasDefaultArg);
+    }
 
     // If there was no default argument, deduction is incomplete.
     if (DefArg.getArgument().isNull()) {
@@ -3079,6 +3094,10 @@ Sema::DeduceTemplateArguments(ClassTemplatePartialSpecializationDecl *Partial,
       *this, Sema::ExpressionEvaluationContext::Unevaluated);
   SFINAETrap Trap(*this);
 
+  // This deduction has no relation to any outer instantiation we might be
+  // performing.
+  LocalInstantiationScope InstantiationScope(*this);
+
   SmallVector<DeducedTemplateArgument, 4> Deduced;
   Deduced.resize(Partial->getTemplateParameters()->size());
   if (TemplateDeductionResult Result
@@ -3126,6 +3145,10 @@ Sema::DeduceTemplateArguments(VarTemplatePartialSpecializationDecl *Partial,
   EnterExpressionEvaluationContext Unevaluated(
       *this, Sema::ExpressionEvaluationContext::Unevaluated);
   SFINAETrap Trap(*this);
+
+  // This deduction has no relation to any outer instantiation we might be
+  // performing.
+  LocalInstantiationScope InstantiationScope(*this);
 
   SmallVector<DeducedTemplateArgument, 4> Deduced;
   Deduced.resize(Partial->getTemplateParameters()->size());
@@ -4338,7 +4361,7 @@ Sema::TemplateDeductionResult Sema::DeduceTemplateArguments(
     HasDeducedReturnType = true;
   }
 
-  if (!ArgFunctionType.isNull()) {
+  if (!ArgFunctionType.isNull() && !FunctionType.isNull()) {
     unsigned TDF =
         TDF_TopLevelParameterTypeList | TDF_AllowCompatibleFunctionType;
     // Deduce template arguments from the function type.
@@ -4697,10 +4720,9 @@ CheckDeducedPlaceholderConstraints(Sema &S, const AutoType &Type,
     llvm::raw_string_ostream OS(Buf);
     OS << "'" << Concept->getName();
     if (TypeLoc.hasExplicitTemplateArgs()) {
-      OS << "<";
-      for (const auto &Arg : Type.getTypeConstraintArguments())
-        Arg.print(S.getPrintingPolicy(), OS);
-      OS << ">";
+      printTemplateArgumentList(
+          OS, Type.getTypeConstraintArguments(), S.getPrintingPolicy(),
+          Type.getTypeConstraintConcept()->getTemplateParameters());
     }
     OS << "'";
     OS.flush();
@@ -5466,6 +5488,9 @@ static bool isAtLeastAsSpecializedAs(Sema &S, QualType T1, QualType T2,
                                                Deduced.end());
   Sema::InstantiatingTemplate Inst(S, Info.getLocation(), P2, DeducedArgs,
                                    Info);
+  if (Inst.isInvalid())
+    return false;
+
   auto *TST1 = T1->castAs<TemplateSpecializationType>();
   bool AtLeastAsSpecialized;
   S.runWithSufficientStackSpace(Info.getLocation(), [&] {
