@@ -145,6 +145,10 @@ const ParsedAttrInfo &ParsedAttrInfo::get(const AttributeCommonInfo &A) {
   return DefaultParsedAttrInfo;
 }
 
+ArrayRef<const ParsedAttrInfo *> ParsedAttrInfo::getAllBuiltin() {
+  return llvm::makeArrayRef(AttrInfoMap);
+}
+
 unsigned ParsedAttr::getMinArgs() const { return getInfo().NumArgs; }
 
 unsigned ParsedAttr::getMaxArgs() const {
@@ -167,10 +171,6 @@ bool ParsedAttr::diagnoseMutualExclusion(Sema &S, const Decl *D) const {
   return getInfo().diagMutualExclusion(S, *this, D);
 }
 
-bool ParsedAttr::diagnoseMutualExclusion(Sema &S, const Stmt *St) const {
-  return getInfo().diagMutualExclusion(S, *this, St);
-}
-
 bool ParsedAttr::appliesToDecl(const Decl *D,
                                attr::SubjectMatchRule MatchRule) const {
   return checkAttributeMatchRuleAppliesTo(D, MatchRule);
@@ -184,7 +184,10 @@ void ParsedAttr::getMatchRules(
 }
 
 bool ParsedAttr::diagnoseLangOpts(Sema &S) const {
-  return getInfo().diagLangOpts(S, *this);
+  if (getInfo().acceptsLangOpts(S.getLangOpts()))
+    return true;
+  S.Diag(getLoc(), diag::warn_attribute_ignored) << *this;
+  return false;
 }
 
 bool ParsedAttr::isTargetSpecificAttr() const {

@@ -249,6 +249,8 @@ def TimeAPI : PublicAPI<"time.h"> {
   ];
 
   let Functions = [
+    "asctime",
+    "asctime_r",
     "gmtime",
     "gmtime_r",
     "mktime",
@@ -342,6 +344,19 @@ def MtxT : TypeDecl<"mtx_t"> {
   }];
 }
 
+def CndT : TypeDecl<"cnd_t"> {
+  let Decl = [{
+    typedef struct {
+      void *__qfront;
+      void *__qback;
+      struct {
+        unsigned char __w[4];
+        int __t;
+      } __qmtx;
+    } cnd_t;
+  }];
+}
+
 def ThreadStartT : TypeDecl<"thrd_start_t"> {
   let Decl = "typedef int (*thrd_start_t)(void *);";
 }
@@ -361,6 +376,7 @@ def ThreadsAPI : PublicAPI<"threads.h"> {
     OnceFlag,
     CallOnceFuncT,
     MtxT,
+    CndT,
     ThreadStartT,
   ];
 

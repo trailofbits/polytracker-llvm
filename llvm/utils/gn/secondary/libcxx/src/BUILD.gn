@@ -128,6 +128,7 @@ cxx_sources = [
   "include/atomic_support.h",
   "include/config_elast.h",
   "include/refstring.h",
+  "include/sso_allocator.h",
   "ios.cpp",
   "ios.instantiations.cpp",
   "iostream.cpp",
@@ -175,7 +176,11 @@ if (target_os == "solaris") {
   cxx_sources += [ "support/solaris/xlocale.cpp" ]
 }
 if (target_os == "zos") {
-  cxx_sources += [ "support/ibm/xlocale_zos.cpp" ]
+  cxx_sources += [
+    "support/ibm/mbsnrtowcs.cpp",
+    "support/ibm/wcsnrtombs.cpp",
+    "support/ibm/xlocale_zos.cpp",
+  ]
 }
 if (libcxx_enable_debug_mode) {
   cxx_sources += [ "debug.cpp" ]

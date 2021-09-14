@@ -57,6 +57,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <cassert>
 #include <iterator>
 #include <map>
@@ -302,7 +303,7 @@ static bool addReadAttrs(const SCCNodeSet &SCCNodes, AARGetterT &&AARGetter) {
       AttrsToRemove.addAttribute(Attribute::InaccessibleMemOnly);
       AttrsToRemove.addAttribute(Attribute::InaccessibleMemOrArgMemOnly);
     }
-    F->removeAttributes(AttributeList::FunctionIndex, AttrsToRemove);
+    F->removeFnAttrs(AttrsToRemove);
 
     // Add in the new attribute.
     if (WritesMemory && !ReadsMemory)
@@ -1054,8 +1055,7 @@ static bool addNonNullAttrs(const SCCNodeSet &SCCNodes) {
   // pointers.
   for (Function *F : SCCNodes) {
     // Already nonnull.
-    if (F->getAttributes().hasAttribute(AttributeList::ReturnIndex,
-                                        Attribute::NonNull))
+    if (F->getAttributes().hasRetAttr(Attribute::NonNull))
       continue;
 
     // We can infer and propagate function attributes only when we know that the
@@ -1076,7 +1076,7 @@ static bool addNonNullAttrs(const SCCNodeSet &SCCNodes) {
         // which prevents us from speculating about the entire SCC
         LLVM_DEBUG(dbgs() << "Eagerly marking " << F->getName()
                           << " as nonnull\n");
-        F->addAttribute(AttributeList::ReturnIndex, Attribute::NonNull);
+        F->addRetAttr(Attribute::NonNull);
         ++NumNonNullReturn;
         MadeChange = true;
       }
@@ -1089,13 +1089,12 @@ static bool addNonNullAttrs(const SCCNodeSet &SCCNodes) {
 
   if (SCCReturnsNonNull) {
     for (Function *F : SCCNodes) {
-      if (F->getAttributes().hasAttribute(AttributeList::ReturnIndex,
-                                          Attribute::NonNull) ||
+      if (F->getAttributes().hasRetAttr(Attribute::NonNull) ||
           !F->getReturnType()->isPointerTy())
         continue;
 
       LLVM_DEBUG(dbgs() << "SCC marking " << F->getName() << " as nonnull\n");
-      F->addAttribute(AttributeList::ReturnIndex, Attribute::NonNull);
+      F->addRetAttr(Attribute::NonNull);
       ++NumNonNullReturn;
       MadeChange = true;
     }
@@ -1270,15 +1269,10 @@ static bool InstrBreaksNoFree(Instruction &I, const SCCNodeSet &SCCNodes) {
   if (CB->hasFnAttr(Attribute::NoFree))
     return false;
 
-  Function *Callee = CB->getCalledFunction();
-  if (!Callee)
-    return true;
-
-  if (Callee->doesNotFreeMemory())
-    return false;
-
-  if (SCCNodes.contains(Callee))
-    return false;
+  // Speculatively assume in SCC.
+  if (Function *Callee = CB->getCalledFunction())
+    if (SCCNodes.contains(Callee))
+      return false;
 
   return true;
 }
@@ -1402,10 +1396,8 @@ static bool addNoRecurseAttrs(const SCCNodeSet &SCCNodes) {
 }
 
 static bool instructionDoesNotReturn(Instruction &I) {
-  if (auto *CB = dyn_cast<CallBase>(&I)) {
-    Function *Callee = CB->getCalledFunction();
-    return Callee && Callee->doesNotReturn();
-  }
+  if (auto *CB = dyn_cast<CallBase>(&I))
+    return CB->hasFnAttr(Attribute::NoReturn);
   return false;
 }
 
@@ -1438,6 +1430,12 @@ static bool addNoReturnAttrs(const SCCNodeSet &SCCNodes) {
 }
 
 static bool functionWillReturn(const Function &F) {
+  // We can infer and propagate function attributes only when we know that the
+  // definition we'll get at link time is *exactly* the definition we see now.
+  // For more details, see GlobalValue::mayBeDerefined.
+  if (!F.hasExactDefinition())
+    return false;
+
   // Must-progress function without side-effects must return.
   if (F.mustProgress() && F.onlyReadsMemory())
     return true;
@@ -1516,13 +1514,6 @@ static bool InstrBreaksNoSync(Instruction &I, const SCCNodeSet &SCCNodes) {
   if (CB->hasFnAttr(Attribute::NoSync))
     return false;
 
-  // readnone + not convergent implies nosync
-  // (This is needed to initialize inference from declarations which aren't
-  //  explicitly nosync, but are readnone and not convergent.)
-  if (CB->hasFnAttr(Attribute::ReadNone) &&
-      !CB->hasFnAttr(Attribute::Convergent))
-    return false;
-
   // Non volatile memset/memcpy/memmoves are nosync
   // NOTE: Only intrinsics with volatile flags should be handled here.  All
   // others should be marked in Intrinsics.td.
@@ -1556,21 +1547,7 @@ static bool addNoSyncAttr(const SCCNodeSet &SCCNodes) {
         ++NumNoSync;
       },
       /* RequiresExactDefinition= */ true});
-  bool Changed = AI.run(SCCNodes);
-
-  // readnone + not convergent implies nosync
-  // (This is here so that we don't have to duplicate the function local
-  //  memory reasoning of the readnone analysis.)
-  for (Function *F : SCCNodes) {
-    if (!F || F->hasNoSync())
-      continue;
-    if (!F->doesNotAccessMemory() || F->isConvergent())
-      continue;
-    F->setNoSync();
-    NumNoSync++;
-    Changed = true;
-  }
-  return Changed;
+  return AI.run(SCCNodes);
 }
 
 static SCCNodesResult createSCCNodeSet(ArrayRef<Function *> Functions) {
@@ -1630,6 +1607,14 @@ static bool deriveAttrsInPostOrder(ArrayRef<Function *> Functions,
 
   Changed |= addNoSyncAttr(Nodes.SCCNodes);
 
+  // Finally, infer the maximal set of attributes from the ones we've inferred
+  // above.  This is handling the cases where one attribute on a signature
+  // implies another, but for implementation reasons the inference rule for
+  // the later is missing (or simply less sophisticated).
+  for (Function *F : Nodes.SCCNodes)
+    if (F)
+      Changed |= inferAttributesFromOthers(*F);
+
   return Changed;
 }
 
@@ -1651,8 +1636,12 @@ PreservedAnalyses PostOrderFunctionAttrsPass::run(LazyCallGraph::SCC &C,
     Functions.push_back(&N.getFunction());
   }
 
-  if (deriveAttrsInPostOrder(Functions, AARGetter))
-    return PreservedAnalyses::none();
+  if (deriveAttrsInPostOrder(Functions, AARGetter)) {
+    // We have not changed the call graph or removed/added functions.
+    PreservedAnalyses PA;
+    PA.preserve<FunctionAnalysisManagerCGSCCProxy>();
+    return PA;
+  }
 
   return PreservedAnalyses::all();
 }
