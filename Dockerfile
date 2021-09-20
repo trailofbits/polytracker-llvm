@@ -1,4 +1,4 @@
-FROM ubuntu:bionic AS builder
+FROM ubuntu:focal AS builder-base
 ##########################################################
 # Build clang, and then build libcxx/libcxx abi with gclang
 # Having our own repo lets us pull from llvm mainstream ez
@@ -7,6 +7,22 @@ FROM ubuntu:bionic AS builder
 
 ARG BUILD_TYPE="Release"
 ARG PARALLEL_LINK_JOBS=1
+ARG TARGETARCH
+
+
+# ARM64/AArch64 platform specific settings
+FROM builder-base AS builder-arm64
+ARG LLVM_TARGET_NAME=AArch64
+ARG CMAKE_FILENAME_ARCH=aarch64
+ARG DFSAN_FILENAME_ARCH=aarch64
+
+# AMD64/X86_64 platform specific settings
+FROM builder-base AS builder-amd64
+ARG LLVM_TARGET_NAME=X86
+ARG CMAKE_FILENAME_ARCH=x86_64
+ARG DFSAN_FILENAME_ARCH=x86_64
+
+FROM builder-$TARGETARCH AS builder
 
 # Build clang libs, cxx libs. Export the bin, and cxx libs?
 RUN DEBIAN_FRONTEND=noninteractive apt-get -y update  \
@@ -14,15 +30,15 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -y update  \
       git                                             \
       ninja-build                                     \
       wget                                            \
-      python3.7-dev                                   \
+      python3.8-dev                                   \
       python3-distutils                               \
       golang                                          \
       clang-10
 
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.19.2/cmake-3.19.2-Linux-x86_64.sh
-RUN mkdir -p /usr/bin/cmake-3.19
-RUN chmod +x cmake-3.19.2-Linux-x86_64.sh && ./cmake-3.19.2-Linux-x86_64.sh --skip-license --prefix=/usr/bin/cmake-3.19
-ENV PATH="/usr/bin/cmake-3.19/bin:${PATH}"
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.20.5/cmake-3.20.5-Linux-${CMAKE_FILENAME_ARCH}.sh
+RUN mkdir -p /usr/bin/cmake-3.20
+RUN chmod +x cmake-3.20.5-Linux-${CMAKE_FILENAME_ARCH}.sh && ./cmake-3.20.5-Linux-${CMAKE_FILENAME_ARCH}.sh --skip-license --prefix=/usr/bin/cmake-3.20
+ENV PATH="/usr/bin/cmake-3.20/bin:${PATH}"
 ENV LLVM_CXX_DIR=/polytracker-llvm/llvm
 
 RUN go get github.com/SRI-CSL/gllvm/cmd/...
@@ -35,7 +51,7 @@ RUN mkdir /cxx_libs && mkdir /polytracker_clang
 
 WORKDIR /polytracker_clang
 RUN cmake -GNinja ${LLVM_DIR} \
-  -DLLVM_TARGETS_TO_BUILD="X86" \
+  -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGET_NAME}" \
   -DLLVM_ENABLE_PROJECTS="clang;llvm;compiler-rt" \
   -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
   -DLLVM_PARALLEL_LINK_JOBS=${PARALLEL_LINK_JOBS}
@@ -60,7 +76,7 @@ WORKDIR $CLEAN_CXX_DIR
 
 RUN cmake -GNinja ${LLVM_CXX_DIR} \
   -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-  -DLLVM_TARGETS_TO_BUILD="X86" \
+  -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGET_NAME}" \
   -DLLVM_ENABLE_LIBCXX=ON \
   -DLIBCXXABI_ENABLE_SHARED=NO \
   -DLIBCXX_ENABLE_SHARED=NO \
@@ -80,7 +96,7 @@ WORKDIR  $POLY_CXX_DIR
 
 RUN cmake -GNinja ${LLVM_CXX_DIR} \
   -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-  -DLLVM_TARGETS_TO_BUILD="X86" \
+  -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGET_NAME}" \
   -DLLVM_ENABLE_LIBCXX=ON \
   -DLIBCXX_ABI_NAMESPACE="__p" \
   -DLIBCXXABI_ENABLE_SHARED=NO \
@@ -99,7 +115,8 @@ RUN ninja cxx cxxabi
 RUN rm -rf /polytracker-llvm/llvm/test
 
 
-FROM ubuntu:bionic AS polytracker-llvm
+# Inherit from builder-$TARGETARCH for DFSAN_FILENAME_ARCH arg. Not inheriting the build artifacts in builder.
+FROM builder-$TARGETARCH AS polytracker-llvm
 MAINTAINER Evan Sultanik <evan.sultanik@trailofbits.com>
 MAINTAINER Carson Harmon <carson.harmon@trailofbits.com>
 
@@ -123,7 +140,7 @@ COPY --from=builder /polytracker-llvm/llvm /polytracker-llvm/llvm
 WORKDIR /
 RUN mkdir /build_artifacts
 
-ENV DFSAN_LIB_PATH=/polytracker_clang/lib/clang/13.0.0/lib/linux/libclang_rt.dfsan-x86_64.a
+ENV DFSAN_LIB_PATH=/polytracker_clang/lib/clang/13.0.0/lib/linux/libclang_rt.dfsan-${DFSAN_FILENAME_ARCH}.a
 ENV CXX_LIB_PATH=/cxx_libs
 ENV WLLVM_BC_STORE=/cxx_clean_bitcode
 ENV WLLVM_ARTIFACT_STORE=/build_artifacts
