@@ -5,6 +5,27 @@ This is a modified version of LLVM to support [PolyTracker](https://github.com/t
 All of the modifications are in the default branch called `polytracker`.
 The [`main` branch](https://github.com/trailofbits/polytracker-llvm/tree/main) always tracks upstream LLVM.
 
+## Building polytracker-llvm
+It is recommended to build this project using the Dockerfile to ensure dependencies are handled correctly. To build simply run
+```commandline
+$ docker build -t trailofbits/polytracker-llvm .
+```
+If you get an error message
+```
+Step 13/68 : FROM builder-$TARGETARCH AS builder
+invalid reference format
+```
+Try building with Docker BuildKit by running:
+```commandline
+$ DOCKER_BUILDKIT=1 docker build -t trailofbits/polytracker-llvm .
+```
+
+## Troubleshooting
+If your build process is killed by collect2 with signal 9 [Killed] it might be an indication that your machine does not have enough memory. When running Docker Desktop on MAC, the amount of memory available for containers can be controlled by "Preferences" > "Resources" > "Advanced".
+
+Another possibililty is that the ```PARALLEL_LINK_JOBS``` argument is increased from 1.
+# The LLVM Compiler Infrastructure
+
 This directory and its sub-directories contain source code for LLVM,
 a toolkit for the construction of highly optimized compilers,
 optimizers, and run-time environments.
