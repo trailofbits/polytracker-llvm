@@ -25,6 +25,7 @@
 
 using namespace llvm;
 
+namespace llvm {
 cl::opt<bool> ShouldPreserveAllAttributes(
     "assume-preserve-all", cl::init(false), cl::Hidden,
     cl::desc("enable preservation of all attrbitues. even those that are "
@@ -34,6 +35,7 @@ cl::opt<bool> EnableKnowledgeRetention(
     "enable-knowledge-retention", cl::init(false), cl::Hidden,
     cl::desc(
         "enable preservation of attributes throughout code transformation"));
+} // namespace llvm
 
 #define DEBUG_TYPE "assume-builder"
 
@@ -150,7 +152,7 @@ struct AssumeBuilderState {
     }
     if (auto *Arg = dyn_cast<Argument>(RK.WasOn)) {
       if (Arg->hasAttribute(RK.AttrKind) &&
-          (!Attribute::doesAttrKindHaveArgument(RK.AttrKind) ||
+          (!Attribute::isIntAttrKind(RK.AttrKind) ||
            Arg->getAttribute(RK.AttrKind).getValueAsInt() >= RK.ArgValue))
         return false;
       return true;
@@ -201,21 +203,20 @@ struct AssumeBuilderState {
   }
 
   void addCall(const CallBase *Call) {
-    auto addAttrList = [&](AttributeList AttrList) {
-      for (unsigned Idx = AttributeList::FirstArgIndex;
-           Idx < AttrList.getNumAttrSets(); Idx++)
-        for (Attribute Attr : AttrList.getAttributes(Idx)) {
+    auto addAttrList = [&](AttributeList AttrList, unsigned NumArgs) {
+      for (unsigned Idx = 0; Idx < NumArgs; Idx++)
+        for (Attribute Attr : AttrList.getParamAttrs(Idx)) {
           bool IsPoisonAttr = Attr.hasAttribute(Attribute::NonNull) ||
                               Attr.hasAttribute(Attribute::Alignment);
-          if (!IsPoisonAttr || Call->isPassingUndefUB(Idx - 1))
-            addAttribute(Attr, Call->getArgOperand(Idx - 1));
+          if (!IsPoisonAttr || Call->isPassingUndefUB(Idx))
+            addAttribute(Attr, Call->getArgOperand(Idx));
         }
-      for (Attribute Attr : AttrList.getFnAttributes())
+      for (Attribute Attr : AttrList.getFnAttrs())
         addAttribute(Attr, nullptr);
     };
-    addAttrList(Call->getAttributes());
+    addAttrList(Call->getAttributes(), Call->arg_size());
     if (Function *Fn = Call->getCalledFunction())
-      addAttrList(Fn->getAttributes());
+      addAttrList(Fn->getAttributes(), Fn->arg_size());
   }
 
   AssumeInst *build() {
@@ -420,7 +421,7 @@ struct AssumeSimplify {
           if (auto *Arg = dyn_cast_or_null<Argument>(RK.WasOn)) {
             bool HasSameKindAttr = Arg->hasAttribute(RK.AttrKind);
             if (HasSameKindAttr)
-              if (!Attribute::doesAttrKindHaveArgument(RK.AttrKind) ||
+              if (!Attribute::isIntAttrKind(RK.AttrKind) ||
                   Arg->getAttribute(RK.AttrKind).getValueAsInt() >=
                       RK.ArgValue) {
                 RemoveFromAssume();

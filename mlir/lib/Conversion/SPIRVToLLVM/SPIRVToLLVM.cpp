@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Conversion/SPIRVToLLVM/SPIRVToLLVM.h"
-#include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
-#include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h"
+#include "mlir/Conversion/LLVMCommon/Pattern.h"
+#include "mlir/Conversion/LLVMCommon/TypeConverter.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
@@ -674,7 +674,8 @@ public:
     // Create `llvm.mlir.global` with initializer region containing one block.
     auto global = rewriter.create<LLVM::GlobalOp>(
         UnknownLoc::get(context), structType, /*isConstant=*/true,
-        LLVM::Linkage::External, executionModeInfoName, Attribute());
+        LLVM::Linkage::External, executionModeInfoName, Attribute(),
+        /*alignment=*/0);
     Location loc = global.getLoc();
     Region &region = global.getInitializerRegion();
     Block *block = rewriter.createBlock(&region);
@@ -752,7 +753,8 @@ public:
                        ? LLVM::Linkage::Private
                        : LLVM::Linkage::External;
     rewriter.replaceOpWithNewOp<LLVM::GlobalOp>(
-        op, dstType, isConstant, linkage, op.sym_name(), Attribute());
+        op, dstType, isConstant, linkage, op.sym_name(), Attribute(),
+        /*alignment=*/0);
     return success();
   }
 };
@@ -1340,25 +1342,11 @@ public:
 
     auto newModuleOp =
         rewriter.create<ModuleOp>(spvModuleOp.getLoc(), spvModuleOp.getName());
-    rewriter.inlineRegionBefore(spvModuleOp.body(), newModuleOp.getBody());
+    rewriter.inlineRegionBefore(spvModuleOp.getRegion(), newModuleOp.getBody());
 
     // Remove the terminator block that was automatically added by builder
     rewriter.eraseBlock(&newModuleOp.getBodyRegion().back());
     rewriter.eraseOp(spvModuleOp);
-    return success();
-  }
-};
-
-class ModuleEndConversionPattern
-    : public SPIRVToLLVMConversion<spirv::ModuleEndOp> {
-public:
-  using SPIRVToLLVMConversion<spirv::ModuleEndOp>::SPIRVToLLVMConversion;
-
-  LogicalResult
-  matchAndRewrite(spirv::ModuleEndOp moduleEndOp, ArrayRef<Value> operands,
-                  ConversionPatternRewriter &rewriter) const override {
-
-    rewriter.eraseOp(moduleEndOp);
     return success();
   }
 };
@@ -1505,8 +1493,7 @@ void mlir::populateSPIRVToLLVMFunctionConversionPatterns(
 
 void mlir::populateSPIRVToLLVMModuleConversionPatterns(
     LLVMTypeConverter &typeConverter, RewritePatternSet &patterns) {
-  patterns.add<ModuleConversionPattern, ModuleEndConversionPattern>(
-      patterns.getContext(), typeConverter);
+  patterns.add<ModuleConversionPattern>(patterns.getContext(), typeConverter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1536,12 +1523,13 @@ void mlir::encodeBindAttribute(ModuleOp module) {
             llvm::formatv("{0}_descriptor_set{1}_binding{2}", moduleAndName,
                           std::to_string(descriptorSet.getInt()),
                           std::to_string(binding.getInt()));
+        auto nameAttr = StringAttr::get(op->getContext(), name);
 
         // Replace all symbol uses and set the new symbol name. Finally, remove
         // descriptor set and binding attributes.
-        if (failed(SymbolTable::replaceAllSymbolUses(op, name, spvModule)))
+        if (failed(SymbolTable::replaceAllSymbolUses(op, nameAttr, spvModule)))
           op.emitError("unable to replace all symbol uses for ") << name;
-        SymbolTable::setSymbolName(op, name);
+        SymbolTable::setSymbolName(op, nameAttr);
         op->removeAttr(kDescriptorSet);
         op->removeAttr(kBinding);
       }

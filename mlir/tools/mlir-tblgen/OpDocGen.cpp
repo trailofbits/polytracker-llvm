@@ -19,7 +19,9 @@
 #include "mlir/TableGen/Operator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Regex.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
@@ -32,6 +34,8 @@ using namespace mlir;
 using namespace mlir::tblgen;
 
 using mlir::tblgen::Operator;
+
+extern llvm::cl::opt<std::string> selectedDialect;
 
 // Emit the description by aligning the text to the left per line (e.g.,
 // removing the minimum indentation across the block).
@@ -237,11 +241,17 @@ static void emitAttrOrTypeDefDoc(const RecordKeeper &recordKeeper,
 static void emitDialectDoc(const Dialect &dialect, ArrayRef<AttrDef> attrDefs,
                            ArrayRef<Operator> ops, ArrayRef<Type> types,
                            ArrayRef<TypeDef> typeDefs, raw_ostream &os) {
+  if (selectedDialect.getNumOccurrences() &&
+      dialect.getName() != selectedDialect)
+    return;
   os << "# '" << dialect.getName() << "' Dialect\n\n";
   emitIfNotEmpty(dialect.getSummary(), os);
   emitIfNotEmpty(dialect.getDescription(), os);
 
-  os << "[TOC]\n\n";
+  // Generate a TOC marker except if description already contains one.
+  llvm::Regex r("^[[:space:]]*\\[TOC\\]$", llvm::Regex::RegexFlags::Newline);
+  if (!r.match(dialect.getDescription()))
+    os << "[TOC]\n\n";
 
   if (!attrDefs.empty()) {
     os << "## Attribute definition\n\n";

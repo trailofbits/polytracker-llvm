@@ -9,12 +9,12 @@
 // Implements the intrinsic subroutines RANDOM_INIT, RANDOM_NUMBER, and
 // RANDOM_SEED.
 
-#include "random.h"
-#include "cpp-type.h"
-#include "descriptor.h"
+#include "flang/Runtime/random.h"
 #include "lock.h"
 #include "flang/Common/leading-zero-bit-count.h"
 #include "flang/Common/uint128.h"
+#include "flang/Runtime/cpp-type.h"
+#include "flang/Runtime/descriptor.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -57,7 +57,7 @@ inline void Generate(const Descriptor &harvest) {
       Int fraction{generator()};
       if constexpr (words > 1) {
         for (std::size_t k{1}; k < words; ++k) {
-          static constexpr Int rangeMask{(Int{1} << rangeBits) - 1};
+          static constexpr auto rangeMask{(GeneratedWord{1} << rangeBits) - 1};
           GeneratedWord word{(generator() - generator.min()) & rangeMask};
           fraction = (fraction << rangeBits) | word;
         }
@@ -103,7 +103,7 @@ void RTNAME(RandomNumber)(
     Generate<CppTypeFor<TypeCategory::Real, 10>, 64>(harvest);
     break;
 #elif LONG_DOUBLE == 128
-  case 4:
+  case 16:
     Generate<CppTypeFor<TypeCategory::Real, 16>, 113>(harvest);
     break;
 #endif

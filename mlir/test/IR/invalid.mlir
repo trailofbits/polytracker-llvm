@@ -100,6 +100,12 @@ func @memref_zero_stride(memref<42x42xi8, offset: ?, strides: [0, ?]>) // expect
 
 // -----
 
+func @tensor_encoding_mismatch(%arg0: tensor<8xi32, "enc">) -> (tensor<8xi32>) { // expected-note {{prior use here}}
+  return %arg0: tensor<8xi32> // expected-error {{use of value '%arg0' expects different type than prior uses: 'tensor<8xi32>' vs 'tensor<8xi32, "enc">'}}
+}
+
+// -----
+
 func @bad_branch() {
 ^bb12:
   br ^missing  // expected-error {{reference to an undefined block}}
@@ -169,6 +175,16 @@ func @no_return() {
   %x = constant 0 : i32
   %y = constant 1 : i32  // expected-error {{block with no terminator}}
 }
+
+// -----
+
+func @no_terminator() {
+  br ^bb1
+^bb1:
+  %x = constant 0 : i32
+  %y = constant 1 : i32  // expected-error {{block with no terminator}}
+}
+
 
 // -----
 
@@ -247,7 +263,7 @@ func @for_negative_stride() {
 // -----
 
 func @non_operation() {
-  asd   // expected-error {{custom op 'asd' is unknown}}
+  test.asd   // expected-error {{custom op 'test.asd' is unknown}}
 }
 
 // -----
