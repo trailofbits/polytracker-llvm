@@ -196,7 +196,7 @@ static void dfsan_check_label(dfsan_label label) {
   }
 }
 
-extern "C" SANITIZER_INTERFACE_ATTRIBUTE atomic_dfsan_label* __polytracker_union_table(const dfsan_label &l1, const dfsan_label& l2);
+extern "C" SANITIZER_INTERFACE_ATTRIBUTE dfsan_label __polytracker_union_table(const dfsan_label &l1, const dfsan_label& l2);
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE dfsan_label_info __polytracker_get_label_info(const dfsan_label &l1);
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE void __polytracker_log_union(const dfsan_label &l1, const dfsan_label &l2, const dfsan_label& union_label);
 
@@ -207,9 +207,9 @@ dfsan_label_info __polytracker_get_label_info(const dfsan_label &label) {
   return {0, 0, nullptr, nullptr};
 }
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((weak))
-atomic_dfsan_label* __polytracker_union_table(const dfsan_label &l1, const dfsan_label& l2) {
+dfsan_label __polytracker_union_table(const dfsan_label &l1, const dfsan_label& l2) {
   printf("ERROR In weak function symbol\n");
-  return nullptr;
+  return 0u;
 }
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE __attribute__((weak))
 void __polytracker_log_union(const dfsan_label &l1, const dfsan_label &l2, const dfsan_label& union_label) {}
@@ -220,11 +220,15 @@ extern "C" SANITIZER_INTERFACE_ATTRIBUTE
 dfsan_label __dfsan_union(dfsan_label l1, dfsan_label l2) {
   DCHECK_NE(l1, l2);
 
+  // If either label is zero (untainted), use the other
   if (l1 == 0)
     return l2;
   if (l2 == 0)
     return l1;
 
+  // Use the polytracker way of creating new labels
+  return __polytracker_union_table(l1, l2);
+#if 0
   // If no labels have been created, yet l1 and l2 are non-zero, we are using
   // fast16labels mode.
   if (atomic_load(&__dfsan_last_label, memory_order_relaxed) == 0)
@@ -270,6 +274,7 @@ dfsan_label __dfsan_union(dfsan_label l1, dfsan_label l2) {
     } while (label == kInitializingLabel);
   }
   return label;
+#endif
 }
 
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE
