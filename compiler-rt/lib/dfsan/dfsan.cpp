@@ -659,6 +659,16 @@ static void ReleaseOrClearOrigins(void *addr, uptr size) {
   ReleaseMemoryPagesToOS(beg_aligned, end_aligned);
 }
 
+
+// Clear Shadow memory bytes if not already zero. N.B. This shadow_addr is a
+// pointer to shadow memory and size_in_bytes is the number of bytes to clear,
+// NOT the number of labels.
+static void ClearShadowIfNonZero(void *shadow_addr, uptr size_in_bytes) {
+  char *pshadow = reinterpret_cast<char*>(shadow_addr);
+  if (!mem_is_zero(pshadow, size_in_bytes))
+    internal_memset(pshadow, 0, size_in_bytes);
+}
+
 void SetShadow(dfsan_label label, void *addr, uptr size, dfsan_origin origin) {
   const uptr beg_shadow_addr = (uptr)__dfsan::shadow_for(addr);
 
@@ -690,9 +700,9 @@ void SetShadow(dfsan_label label, void *addr, uptr size, dfsan_origin origin) {
   if (beg_aligned + kNumPagesThreshold * page_size >= end_aligned)
     return WriteShadowIfDifferent(label, beg_shadow_addr, size);
 
-  WriteShadowIfDifferent(label, beg_shadow_addr, beg_aligned - beg_shadow_addr);
+  ClearShadowIfNonZero(reinterpret_cast<void*>(beg_shadow_addr), beg_aligned - beg_shadow_addr);
   ReleaseMemoryPagesToOS(beg_aligned, end_aligned);
-  WriteShadowIfDifferent(label, end_aligned, end_shadow_addr - end_aligned);
+  ClearShadowIfNonZero(reinterpret_cast<void*>(end_aligned), end_shadow_addr - end_aligned);
 }
 
 extern "C" SANITIZER_INTERFACE_ATTRIBUTE void __dfsan_set_label(
