@@ -126,7 +126,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -y update  \
       git                                             \
       golang
 
-RUN go install github.com/SRI-CSL/gllvm/cmd/...
+RUN GO111MODULE=off go get github.com/SRI-CSL/gllvm/cmd/...
 
 # Clang and LLVM binaries with our DFSan mods
 COPY --from=builder /polytracker_clang /polytracker_clang
