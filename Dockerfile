@@ -1,4 +1,4 @@
-FROM ubuntu:focal AS builder-base
+FROM ubuntu:jammy AS builder-base
 ##########################################################
 # Build clang, and then build libcxx/libcxx abi with gclang
 # Having our own repo lets us pull from llvm mainstream ez
@@ -33,7 +33,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -y update  \
       python3.8-dev                                   \
       python3-distutils                               \
       golang                                          \
-      clang-10
+      clang-11
 
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.20.5/cmake-3.20.5-Linux-${CMAKE_FILENAME_ARCH}.sh
 RUN mkdir -p /usr/bin/cmake-3.20
@@ -41,7 +41,7 @@ RUN chmod +x cmake-3.20.5-Linux-${CMAKE_FILENAME_ARCH}.sh && ./cmake-3.20.5-Linu
 ENV PATH="/usr/bin/cmake-3.20/bin:${PATH}"
 ENV LLVM_CXX_DIR=/polytracker-llvm/llvm
 
-RUN go get github.com/SRI-CSL/gllvm/cmd/...
+RUN GO111MODULE=off go get github.com/SRI-CSL/gllvm/cmd/...
 ENV PATH="$PATH:/root/go/bin"
 
 COPY . /polytracker-llvm
@@ -126,7 +126,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get -y update  \
       git                                             \
       golang
 
-RUN go get github.com/SRI-CSL/gllvm/cmd/...
+RUN GO111MODULE=off go get github.com/SRI-CSL/gllvm/cmd/...
 
 # Clang and LLVM binaries with our DFSan mods
 COPY --from=builder /polytracker_clang /polytracker_clang
