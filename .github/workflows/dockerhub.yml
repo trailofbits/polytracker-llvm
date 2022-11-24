@@ -1,7 +1,7 @@
 name: Publish Docker image
 on:
   push:
-    branches: [ polytracker ]
+    branches: [ polytracker, taint-dag ]
 jobs:
   push_to_registry:
     name: Push Docker image to Docker Hub
@@ -17,9 +17,17 @@ jobs:
         id: setTag
         run: |
           if [[ "${{ matrix.build-type }}" == "Debug" ]]; then
-              echo "::set-output name=dockerTag::debug-"
+              if [[ "${GITHUB_REF##*/}" == "polytracker" ]]; then
+                  echo "::set-output name=tags::trailofbits/polytracker-llvm:debug-latest,trailofbits/polytracker-llvm:debug-${{ github.sha }}"
+              else
+                  echo "::set-output name=tags::trailofbits/polytracker-llvm:debug-${{ github.sha }}"
+              fi
           else
-              echo "::set-output name=dockerTag::"
+              if [[ "${GITHUB_REF##*/}" == "polytracker" ]]; then
+                  echo "::set-output name=tags::trailofbits/polytracker-llvm:latest,trailofbits/polytracker-llvm:${{ github.sha }}"
+              else
+                  echo "::set-output name=tags::trailofbits/polytracker-llvm:${{ github.sha }}"
+              fi
           fi
       -
         name: Login to DockerHub
@@ -35,7 +43,7 @@ jobs:
           push: true
           build-args: |
             BUILD_TYPE=${{ matrix.build-type }}
-          tags: trailofbits/polytracker-llvm:${{ steps.setTag.outputs.dockerTag }}latest,trailofbits/polytracker-llvm:${{ steps.setTag.outputs.dockerTag }}${{ github.sha }}
+          tags: ${{ steps.setTag.outputs.tags }}
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
